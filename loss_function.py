@@ -18,51 +18,51 @@ class LossFun(nn.Module):
             priors_boxes = priors_boxes.cuda()
         # batch_size
         batch_num = loc_data.size(0)
-        # default_box数量
+        # default_box number
         box_num = loc_data.size(1)
-        # 存储targets根据每一个prior_box变换后的数据
+        # store targets according to each prior_box date after transformation
         target_loc = torch.Tensor(batch_num,box_num,4)
         target_loc.requires_grad_(requires_grad=False)
-        # 存储每一个default_box预测的种类
+        # store each type of prediction of default_box
         target_conf = torch.LongTensor(batch_num,box_num)
         target_conf.requires_grad_(requires_grad=False)
         if Config.use_cuda:
             target_loc = target_loc.cuda()
             target_conf = target_conf.cuda()
-        # 因为一次batch可能有多个图，每次循环计算出一个图中的box，即8732个box的loc和conf，存放在target_loc和target_conf中
+        # Since there may be multiple graphs in a batch, each loop computes the loc and conf of one box in the graph, i.e. 8732 boxes, which are stored in target_loc and target_conf
         for batch_id in range(batch_num):
             target_truths = targets[batch_id][:,:-1].data
             target_labels = targets[batch_id][:,-1].data
             if Config.use_cuda:
                 target_truths = target_truths.cuda()
                 target_labels = target_labels.cuda()
-            # 计算box函数，即公式中loc损失函数的计算公式
+            # Calculate the box function, i.e. the formula for the loc loss function in Eq.
             utils.match(0.5,target_truths,priors_boxes,target_labels,target_loc,target_conf,batch_id)
         pos = target_conf > 0
         pos_idx = pos.unsqueeze(pos.dim()).expand_as(loc_data)
-        # 相当于论文中L1损失函数乘xij的操作
+        # Equivalent to the operation of multiplying xij by the L1 loss function in the paper
         pre_loc_xij = loc_data[pos_idx].view(-1,4)
         tar_loc_xij = target_loc[pos_idx].view(-1,4)
-        # 将计算好的loc和预测进行smooth_li损失函数
+        # Smooth_li loss function by taking the calculated loc and prediction
         loss_loc = F.smooth_l1_loss(pre_loc_xij,tar_loc_xij,size_average=False)
 
         batch_conf = conf_data.view(-1,Config.class_num)
 
-        # 参照论文中conf计算方式，求出ci
+        # Referring to the conf calculation in the paper, find the ci
         loss_c = utils.log_sum_exp(batch_conf) - batch_conf.gather(1, target_conf.view(-1, 1))
 
         loss_c = loss_c.view(batch_num, -1)
-        # 将正样本设定为0
+        # Set positive sample to 0
         loss_c[pos] = 0
 
-        # 将剩下的负样本排序，选出目标数量的负样本
+        # Sort the remaining negative samples and select the target number of negative samples
         _, loss_idx = loss_c.sort(1, descending=True)
         _, idx_rank = loss_idx.sort(1)
 
         num_pos = pos.long().sum(1, keepdim=True)
         num_neg = torch.clamp(3*num_pos, max=pos.size(1)-1)
 
-        # 提取出正负样本
+        # Extraction of positive and negative samples
         neg = idx_rank < num_neg.expand_as(idx_rank)
         pos_idx = pos.unsqueeze(2).expand_as(conf_data)
         neg_idx = neg.unsqueeze(2).expand_as(conf_data)

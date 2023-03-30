@@ -6,7 +6,7 @@ class SSD(nn.Module):
     def __init__(self):
         super(SSD,self).__init__()
         self.vgg = []
-        #vgg-16模型
+        #vgg-16 model
         self.vgg.append(nn.Conv2d(in_channels=3,out_channels=64,kernel_size=3,stride=1,padding=1))#conv1_1
         self.vgg.append(nn.ReLU(inplace=True))
         self.vgg.append(nn.Conv2d(in_channels=64,out_channels=64,kernel_size=3,stride=1,padding=1))#conv1_2
@@ -75,7 +75,7 @@ class SSD(nn.Module):
             nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, stride=1),
             nn.ReLU(inplace=True)
         )
-        #特征层位置输出
+        #Feature layer position output
         self.feature_map_loc_1 = nn.Sequential(
             nn.Conv2d(in_channels=512,out_channels=4*4,kernel_size=3,stride=1,padding=1)
         )
@@ -94,7 +94,7 @@ class SSD(nn.Module):
         self.feature_map_loc_6 = nn.Sequential(
             nn.Conv2d(in_channels=256,out_channels=4*4,kernel_size=3,stride=1,padding=1)
         )
-        #特征层类别输出
+        #Feature layer category output
         self.feature_map_conf_1 = nn.Sequential(
             nn.Conv2d(in_channels=512,out_channels=4*config.class_num,kernel_size=3,stride=1,padding=1)
         )
@@ -115,7 +115,7 @@ class SSD(nn.Module):
         )
 
 
-    #正向传播过程
+    #Positive propagation process
     def forward(self, image):
         out = self.vgg[0](image)
         out = self.vgg[1](out)
